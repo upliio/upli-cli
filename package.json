@@ -1,0 +1,37 @@
+{
+  "name": "upli",
+  "version": "1.0.0",
+  "description": "",
+  "main": "./lib/index.js",
+  "scripts": {
+    "start": "nodemon --watch 'src/**/*.ts' --exec 'ts-node' src/index.ts",
+    "create": "npm run build && npm run test",
+    "build": "tsc -p .",
+    "local": "npm i -g && upli",
+    "refresh": "rm -rf ./node_modules ./package-lock.json && npm install",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "patch-release": "npm version patch && npm publish && git push --follow-tags"
+  },
+  "bin": {
+    "upli": "./lib/index.js"
+  },
+  "keywords": [],
+  "author": "Lenny Bakkalian",
+  "license": "ISC",
+  "dependencies": {
+    "chalk": "^4.1.1",
+    "clear": "^0.1.0",
+    "commander": "^7.2.0",
+    "figlet": "^1.5.0",
+    "fs": "^0.0.1-security",
+    "ora": "^5.4.0",
+    "path": "^0.12.7",
+    "prompts": "^2.4.1"
+  },
+  "devDependencies": {
+    "@types/node": "^15.12.1",
+    "nodemon": "^2.0.7",
+    "ts-node": "^10.0.0",
+    "typescript": "^4.3.2"
+  }
+}
