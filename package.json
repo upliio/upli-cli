@@ -1,6 +1,6 @@
 {
   "name": "upli",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "",
   "homepage": "https://github.com/upliio/upli-cli",
   "main": "./lib/index.js",
@@ -14,7 +14,7 @@
     "patch-release": "npm version patch && npm publish && git push --follow-tags"
   },
   "bin": {
-    "upli": "./lib/index.js"
+    "upli": "lib/index.js"
   },
   "keywords": [],
   "author": "Lenny Bakkalian",
