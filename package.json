@@ -2,6 +2,7 @@
   "name": "upli",
   "version": "1.0.0",
   "description": "",
+  "homepage": "https://github.com/upliio/upli-cli",
   "main": "./lib/index.js",
   "scripts": {
     "start": "nodemon --watch 'src/**/*.ts' --exec 'ts-node' src/index.ts",
