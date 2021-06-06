@@ -1,10 +1,10 @@
 import commander from 'commander';
 import {getCurrentFolderName, isProject, PROJECT_CONFIG_FILE, writeConfig} from '../ConfigManager';
-import {Colors, detectFramework} from '../utils';
+import {Colors, detectFramework, packageVersion} from '../utils';
 import ora from 'ora';
-import axios from 'axios';
 import {axiosInstance} from '../index';
 import {ProjectConfigModel} from '../models/ProjectConfigModel';
+import {ProjectModel} from '../models/ProjectModel';
 
 const prompts = require('prompts');
 
@@ -15,7 +15,7 @@ export const InitProject = commander.program.createCommand('init')
             console.log(`${Colors.FgRed} This project has already been initialized${Colors.Reset}`);
         } else {
             (async () => {
-                const response = await prompts([
+                const promptResponse = await prompts([
                         {
                             type: 'text',
                             name: 'name',
@@ -49,20 +49,29 @@ export const InitProject = commander.program.createCommand('init')
                     ]
                 );
 
-                if (response.confirmation) {
+                if (promptResponse.confirmation) {
                     const spinner = ora('Create project').start();
 
-                    axiosInstance.post('/api/project/create', {
-                        name: response.name,
-                        serveConfig: ''
-                    }).then(res => {
+                    const project = {
+                        name: promptResponse.name,
+                        serveConfig: {
+                            mapping: [
+                                {
+                                    'path': '/',
+                                    'file': '/index.html'
+                                }
+                            ]
+                        }
+                    } as ProjectModel;
+
+
+                    axiosInstance.post('/api/project/create', project).then(res => {
                         spinner.stop();
                         console.log(`${Colors.FgGreen}Project created at ${Colors.FgCyan}https://${res.data.domain}${Colors.FgGreen}!${Colors.Reset}`);
+                        project.domain = res.data.domain;
                         writeConfig(PROJECT_CONFIG_FILE, {
-                            project: {
-                                name: res.data.name,
-                                domain: res.data.domain
-                            }
+                            project: project,
+                            version: packageVersion
                         } as ProjectConfigModel);
                     }).catch(() => spinner.stop());
                 }

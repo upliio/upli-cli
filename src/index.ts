@@ -22,16 +22,16 @@ export const axiosInstance = axios.create({
 });
 
 axiosInstance.interceptors.response.use(response => response, error => {
-    switch (error.response.status) {
+    switch (error.response?.status) {
         case 403:
             console.log(`${Colors.FgRed}Please login with ${Colors.FgCyan}upli login${Colors.Reset}`);
             break;
         default:
-            const errorMessages = error.response.data?.error?.message;
+            const errorMessages = error.response?.data?.error?.message;
             if (errorMessages) {
                 errorMessages.forEach((msg: string) => console.log(Colors.FgRed + msg + Colors.Reset));
             } else {
-                console.log(`${Colors.FgRed}Unknown error: ${JSON.stringify(error.response.data)}${Colors.Reset}`);
+                console.log(`${Colors.FgRed}Unknown error: ${JSON.stringify(error.response)}${Colors.Reset}`);
             }
     }
 });
@@ -46,6 +46,9 @@ if (!configExists(GLOBAL_CONFIG_FILE)) {
 
 
 console.log(chalk.red(figlet.textSync('upli-cli', {horizontalLayout: 'full'})));
+
+program
+    .option('-d, --debug', 'Enable debug logging');
 
 program.addCommand(Login);
 program.addCommand(InitProject);

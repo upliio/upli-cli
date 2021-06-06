@@ -1,5 +1,9 @@
 import * as fs from 'fs';
-import ora from 'ora';
+import {program} from 'commander';
+
+const packageJson = require('../package.json');
+
+export const packageVersion = packageJson.version;
 
 export function detectFramework(): Framework {
     const files = fs.readdirSync(process.cwd());
@@ -19,6 +23,12 @@ export enum Framework {
 
 export function delay(time: number) {
     return new Promise(resolve => setTimeout(() => resolve(null), time));
+}
+
+export function debug(msg: string) {
+    if (program.opts().debug) {
+        console.log(`${Colors.BgRed}[DEBUG]${Colors.BgMagenta} ${Colors.FgWhite}${msg}${Colors.Reset}`);
+    }
 }
 
 export enum Colors {

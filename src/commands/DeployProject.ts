@@ -1,6 +1,6 @@
 import commander from 'commander';
 import {isProject, loadConfig, PROJECT_CONFIG_FILE} from '../ConfigManager';
-import {Colors} from '../utils';
+import {Colors, debug} from '../utils';
 import ora from 'ora';
 import {axiosInstance} from '../index';
 import {ProjectConfigModel} from '../models/ProjectConfigModel';
@@ -19,7 +19,15 @@ export const DeployProject = commander.program.createCommand('deploy')
         }
 
 
-        const spinner = ora('Prepare deployment').start();
+        const spinner = ora('Prepare deployment');
+
+
+        // hide spinner if debug is enabled
+        if (commander.program.opts().debug) {
+            debug('Hide spinner for debug logging');
+        } else {
+            spinner.start();
+        }
 
         const projectConfig = loadConfig(PROJECT_CONFIG_FILE) as ProjectConfigModel;
 
@@ -38,6 +46,10 @@ export const DeployProject = commander.program.createCommand('deploy')
                 spinner.text = `Diff server(${serverProjectStructure.length}) <=> client(${clientProjectStructure.length})`;
 
 
+                debug(`serverProjectStructure: ${JSON.stringify(serverProjectStructure)}`);
+                debug(`clientProjectStructure: ${JSON.stringify(clientProjectStructure)}`);
+
+
                 const removeFiles = serverProjectStructure.filter(serverFile => !clientProjectStructure.find(clientFile => clientFile.name == serverFile.name));
 
                 const patchFiles = clientProjectStructure.filter(clientFile => !serverProjectStructure.find(serverFile => serverFile.name == clientFile.name && serverFile.hash == clientFile.hash));
@@ -53,12 +65,22 @@ export const DeployProject = commander.program.createCommand('deploy')
                     await patchFilesAsync(projectConfig.project.name, patchFiles[i].name);
                 }
 
+                spinner.text = `Patch configuration`;
+
+                const patchConfigResponse = await axiosInstance.post(`/api/project/config/${projectConfig.project.name}`, projectConfig.project.serveConfig);
+                if (patchConfigResponse.status != 200)
+                    console.log(`${Colors.FgRed}Error while patching config: ${patchConfigResponse?.data}`);
+                debug(`Configuration patched ${JSON.stringify(projectConfig.project.serveConfig)}`)
+
                 spinner.text = 'Deployed!';
                 spinner.stop();
 
-                console.log(`${Colors.FgMagenta}Patched ${patchFiles.length} files!`);
-                console.log(`${Colors.FgGreen}Successfully deployed to ${projectConfig.project.domain}!${Colors.Reset}`);
-
+                if (patchFiles.length == 0) {
+                    console.log(`${Colors.FgYellow}No changes were detected and therefore nothing deployed!${Colors.Reset}`);
+                } else {
+                    patchFiles.forEach(file => console.log(`${Colors.FgMagenta}Patched: ${file.name} ${file.hash}`));
+                    console.log(`${Colors.FgGreen}Successfully deployed ${patchFiles.length} files to ${projectConfig.project.domain}!${Colors.Reset}`);
+                }
 
             }).catch(err => spinner.stop());
 
@@ -67,17 +89,19 @@ export const DeployProject = commander.program.createCommand('deploy')
 
 const patchFilesAsync = async (projectName: string, file: string) => {
     try {
-        console.log(`/api/project/upload/${projectName}/${file}`);
+        const filepath = process.cwd() + file.split('/').join('\\');
 
         const form_data = new FormData();
-        form_data.append('file', fs.createReadStream(file));
+        form_data.append('file', fs.createReadStream(filepath));
 
-        const response = await axiosInstance.post(`/api/project/upload/${projectName}/${file}`, form_data, {
+        const response = await axiosInstance.post(`/api/project/upload/${projectName}${file}`, form_data, {
             headers: {
                 'Content-Type': 'multipart/form-data; boundary=' + form_data.getBoundary()
             }
         });
-        //console.log('file patched ' + response.data, file);
+
+        debug(`patched ${filepath} => ${response?.data}`);
+
     } catch (err) {
         console.error(err);
     }
@@ -90,11 +114,12 @@ function createLocalProjectStructure(): DtoPatchProjectFileResponse[] {
 function getFileHashesFromFolder(directory: string, projectDirectory: string): DtoPatchProjectFileResponse[] {
     let files: DtoPatchProjectFileResponse[] = [];
     fs.readdirSync(directory).forEach(file => {
+        file = directory + '\\' + file;
         if (fs.lstatSync(file).isDirectory()) {
             files = [...files, ...getFileHashesFromFolder(file, projectDirectory)];
         } else {
             files.push({
-                name: file.replace(projectDirectory, ''),
+                name: file.replace(projectDirectory, '').split('\\').join('/').split('//').join('/'),
                 hash: md5File.sync(file)
             });
         }
