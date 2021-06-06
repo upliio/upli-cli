@@ -1,4 +1,5 @@
 import * as fs from 'fs';
+import ora from 'ora';
 
 export function detectFramework(): Framework {
     const files = fs.readdirSync(process.cwd());
@@ -16,6 +17,9 @@ export enum Framework {
     REACT
 }
 
+export function delay(time: number) {
+    return new Promise(resolve => setTimeout(() => resolve(null), time));
+}
 
 export enum Colors {
     Reset = '\x1b[0m',
