@@ -5,5 +5,5 @@ export interface UserModel {
     lastName: string,
     email: string,
     projects: ProjectModel,
-    accessToken: string
+    token: string
 }

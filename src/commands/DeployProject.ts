@@ -55,11 +55,14 @@ export const DeployProject = commander.program.createCommand('deploy')
                 const patchFiles = clientProjectStructure.filter(clientFile => !serverProjectStructure.find(serverFile => serverFile.name == clientFile.name && serverFile.hash == clientFile.hash));
 
 
+
                 spinner.text = `Remove ${removeFiles.length} files`;
+                debug(`remove ${removeFiles.length} files`);
 
                 // TODO: implement remove feature
 
                 spinner.text = `Patch ${patchFiles.length} files`;
+                debug(`patch ${patchFiles.length}`);
 
                 for (let i = 0; i < patchFiles.length; i++) {
                     await patchFilesAsync(projectConfig.project.name, patchFiles[i].name);
@@ -93,6 +96,8 @@ const patchFilesAsync = async (projectName: string, file: string) => {
 
         const form_data = new FormData();
         form_data.append('file', fs.createReadStream(filepath));
+
+        debug(`patch ${filepath}`);
 
         const response = await axiosInstance.post(`/api/project/upload/${projectName}${file}`, form_data, {
             headers: {
