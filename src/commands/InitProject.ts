@@ -6,12 +6,18 @@ import {axiosInstance} from '../index';
 import {ProjectConfigModel} from '../models/ProjectConfigModel';
 import {ProjectModel} from '../models/ProjectModel';
 import chalk from 'chalk';
+import {displayLoginError, isLoggedIn} from '../user/UserService';
 
 const prompts = require('prompts');
 
 export const InitProject = commander.program.createCommand('init')
     .description('Initialize project in current path')
     .action(() => {
+        if (!isLoggedIn()) {
+            displayLoginError();
+            return;
+        }
+
         if (isProject()) {
             console.log(`${Colors.FgRed} This project has already been initialized${Colors.Reset}`);
         } else {
@@ -68,7 +74,7 @@ export const InitProject = commander.program.createCommand('init')
 
                     axiosInstance.post('/api/project/create', project).then(res => {
                         spinner.stop();
-                        console.log(`${Colors.FgGreen}Project created at ${Colors.FgCyan}https://${res.data.domain}${Colors.FgGreen}!${Colors.Reset}`);
+                        console.log(`${Colors.FgGreen}Project created at ${chalk.bold('https://' + res.data.domain)} !${Colors.Reset}`);
                         project.domain = res.data.domain;
                         writeConfig(PROJECT_CONFIG_FILE, {
                             project: project,

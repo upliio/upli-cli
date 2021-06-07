@@ -10,6 +10,7 @@ import * as fs from 'fs';
 import FormData from 'form-data';
 import {ProjectModel} from '../models/ProjectModel';
 import chalk from 'chalk';
+import {displayLoginError, isLoggedIn} from '../user/UserService';
 
 const shell = require('shelljs');
 
@@ -18,6 +19,11 @@ import md5File = require('md5-file');
 export const DeployProject = commander.program.createCommand('deploy')
     .description('Deploy project')
     .action(() => {
+        if (!isLoggedIn()) {
+            displayLoginError();
+            return;
+        }
+
         if (!isProject()) {
             console.log(`${Colors.FgRed}Please initialize project first with ${Colors.FgCyan}upli init${Colors.Reset}`);
             return;
@@ -112,15 +118,15 @@ export const DeployProject = commander.program.createCommand('deploy')
                     spinner.stop();
 
 
-                    if(deleteResponse?.data?.deletedFiles && deleteResponse.data.deletedFiles.length > 0){
+                    if (deleteResponse?.data?.deletedFiles && deleteResponse.data.deletedFiles.length > 0) {
                         deleteResponse.data.deletedFiles.forEach((deletedFile: string) => console.log(chalk.yellow(`Deleted: ${deletedFile}`)));
                     }
 
                     if (patchFiles.length == 0) {
-                        console.log(`${Colors.FgYellow}No changes were detected and therefore nothing deployed!${Colors.Reset}`);
+                        console.log(`${Colors.FgYellow}No changes were detected and therefore nothing deployed to ${chalk.bold('https://' + projectConfig.project.domain)} !${Colors.Reset}`);
                     } else {
                         patchFiles.forEach(file => console.log(`${Colors.FgMagenta}Patched: ${file.name} ${file.hash}`));
-                        console.log(`${Colors.FgGreen}Successfully deployed ${patchFiles.length} files to ${projectConfig.project.domain}!${Colors.Reset}`);
+                        console.log(`${Colors.FgGreen}Successfully deployed ${patchFiles.length} files to ${chalk.bold('https://' + projectConfig.project.domain)} !${Colors.Reset}`);
                     }
 
                 }).catch(err => spinner.stop());
