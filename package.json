@@ -1,6 +1,6 @@
 {
   "name": "upli",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "",
   "homepage": "https://github.com/upliio/upli-cli",
   "main": "./lib/index.js",
