@@ -1,6 +1,6 @@
 import commander from 'commander';
 import {isProject, loadConfig, PROJECT_CONFIG_FILE} from '../ConfigManager';
-import {Colors, debug} from '../utils';
+import {Colors, debug, isDebug, normalizePath} from '../utils';
 import ora from 'ora';
 import {axiosInstance} from '../index';
 import {ProjectConfigModel} from '../models/ProjectConfigModel';
@@ -8,6 +8,11 @@ import {DtoPatchProjectFileResponse} from '../dtos/responses/project/DtoPatchPro
 import * as fs from 'fs';
 
 import FormData from 'form-data';
+import {ProjectModel} from '../models/ProjectModel';
+import chalk from 'chalk';
+
+const shell = require('shelljs');
+
 import md5File = require('md5-file');
 
 export const DeployProject = commander.program.createCommand('deploy')
@@ -31,75 +36,115 @@ export const DeployProject = commander.program.createCommand('deploy')
 
         const projectConfig = loadConfig(PROJECT_CONFIG_FILE) as ProjectConfigModel;
 
-        spinner.text = 'Fetch server project structure';
+        const buildPath = getFullBuildPath(projectConfig.project);
 
-        // get file hashes from server
-
-        axiosInstance.get(`/api/project/files/${projectConfig.project.name}`)
-            .then(async res => {
-                const serverProjectStructure = res.data as DtoPatchProjectFileResponse[];
-
-                spinner.text = `Create patch (${serverProjectStructure.length} files found on server)`;
-
-                const clientProjectStructure = createLocalProjectStructure();
-
-                spinner.text = `Diff server(${serverProjectStructure.length}) <=> client(${clientProjectStructure.length})`;
+        debug(`configBuildPath: ${projectConfig.project.config.deploy.buildPath}`);
+        debug(`fullBuildPath: ${buildPath}`);
 
 
-                debug(`serverProjectStructure: ${JSON.stringify(serverProjectStructure)}`);
-                debug(`clientProjectStructure: ${JSON.stringify(clientProjectStructure)}`);
+        const buildCmd = projectConfig.project.config.deploy.buildCmd;
+        spinner.text = `Build project with ${buildCmd}`;
 
-
-                const removeFiles = serverProjectStructure.filter(serverFile => !clientProjectStructure.find(clientFile => clientFile.name == serverFile.name));
-
-                const patchFiles = clientProjectStructure.filter(clientFile => !serverProjectStructure.find(serverFile => serverFile.name == clientFile.name && serverFile.hash == clientFile.hash));
-
-
-
-                spinner.text = `Remove ${removeFiles.length} files`;
-                debug(`remove ${removeFiles.length} files`);
-
-                // TODO: implement remove feature
-
-                spinner.text = `Patch ${patchFiles.length} files`;
-                debug(`patch ${patchFiles.length}`);
-
-                for (let i = 0; i < patchFiles.length; i++) {
-                    await patchFilesAsync(projectConfig.project.name, patchFiles[i].name);
+        new Promise((resolve, reject) => {
+            if (!buildCmd) {
+                resolve(null);
+                return;
+            }
+            shell.exec(buildCmd, {silent: !isDebug()}, (code: number, stdout: any, stderr: any) => {
+                if (code !== 0) {
+                    reject({stdout: stdout, stderr: stderr});
+                    return;
                 }
+                resolve({code, stdout, stderr});
+            });
+        }).then((res) => {
 
-                spinner.text = `Patch configuration`;
+            spinner.text = 'Fetch server project structure';
 
-                const patchConfigResponse = await axiosInstance.post(`/api/project/config/${projectConfig.project.name}`, projectConfig.project.serveConfig);
-                if (patchConfigResponse.status != 200)
-                    console.log(`${Colors.FgRed}Error while patching config: ${patchConfigResponse?.data}`);
-                debug(`Configuration patched ${JSON.stringify(projectConfig.project.serveConfig)}`)
+            // get file hashes from server
 
-                spinner.text = 'Deployed!';
-                spinner.stop();
+            axiosInstance.get(`/api/project/files/${projectConfig.project.name}`)
+                .then(async res => {
 
-                if (patchFiles.length == 0) {
-                    console.log(`${Colors.FgYellow}No changes were detected and therefore nothing deployed!${Colors.Reset}`);
-                } else {
-                    patchFiles.forEach(file => console.log(`${Colors.FgMagenta}Patched: ${file.name} ${file.hash}`));
-                    console.log(`${Colors.FgGreen}Successfully deployed ${patchFiles.length} files to ${projectConfig.project.domain}!${Colors.Reset}`);
-                }
+                    const serverProjectStructure = res.data as DtoPatchProjectFileResponse[];
 
-            }).catch(err => spinner.stop());
+                    spinner.text = `Create patch (${serverProjectStructure.length} files found on server)`;
 
+                    const clientProjectStructure = createLocalProjectStructure(projectConfig.project);
+
+                    spinner.text = `Diff server(${serverProjectStructure.length}) <=> client(${clientProjectStructure.length})`;
+
+
+                    debug(`serverProjectStructure: ${JSON.stringify(serverProjectStructure)}`);
+                    debug(`clientProjectStructure: ${JSON.stringify(clientProjectStructure)}`);
+
+
+                    const removeFiles = serverProjectStructure.filter(serverFile => !clientProjectStructure.find(clientFile => clientFile.name == serverFile.name));
+
+                    const patchFiles = clientProjectStructure.filter(clientFile => !serverProjectStructure.find(serverFile => serverFile.name == clientFile.name && serverFile.hash == clientFile.hash));
+
+
+                    spinner.text = `Remove ${removeFiles.length} files`;
+                    debug(`remove ${removeFiles.length} files`);
+
+                    // delete unused project files
+                    const deleteResponse = await axiosInstance.post(`/api/project/delete/${projectConfig.project.name}/files`, {
+                        files: removeFiles.map(f => f.name),
+                        deleteEmptyFolders: true
+                    });
+                    debug(`deleteResponse ${JSON.stringify(deleteResponse.data)}`);
+
+                    spinner.text = `Patch ${patchFiles.length} files`;
+                    debug(`patch ${patchFiles.length}`);
+
+                    for (let i = 0; i < patchFiles.length; i++) {
+                        await patchFilesAsync(projectConfig.project, patchFiles[i].name);
+                    }
+
+                    spinner.text = `Patch configuration`;
+
+                    const patchConfigResponse = await axiosInstance.post(`/api/project/config/${projectConfig.project.name}`, projectConfig.project.config);
+                    if (patchConfigResponse.status != 200)
+                        console.log(`${Colors.FgRed}Error while patching config: ${patchConfigResponse?.data}`);
+                    debug(`Configuration patched ${JSON.stringify(projectConfig.project.config)}`);
+
+                    spinner.text = 'Deployed!';
+                    spinner.stop();
+
+
+                    if(deleteResponse?.data?.deletedFiles && deleteResponse.data.deletedFiles.length > 0){
+                        deleteResponse.data.deletedFiles.forEach((deletedFile: string) => console.log(chalk.yellow(`Deleted: ${deletedFile}`)));
+                    }
+
+                    if (patchFiles.length == 0) {
+                        console.log(`${Colors.FgYellow}No changes were detected and therefore nothing deployed!${Colors.Reset}`);
+                    } else {
+                        patchFiles.forEach(file => console.log(`${Colors.FgMagenta}Patched: ${file.name} ${file.hash}`));
+                        console.log(`${Colors.FgGreen}Successfully deployed ${patchFiles.length} files to ${projectConfig.project.domain}!${Colors.Reset}`);
+                    }
+
+                }).catch(err => spinner.stop());
+        }).catch(err => {
+            spinner.stop();
+            console.log(chalk.red(`Could not build project: \n${err.stderr}`));
+        });
 
     });
 
-const patchFilesAsync = async (projectName: string, file: string) => {
+function getFullBuildPath(project: ProjectModel) {
+    return normalizePath(process.cwd() + '/' + (project.config.deploy.buildPath ?? '') + '\/');
+}
+
+const patchFilesAsync = async (project: ProjectModel, file: string) => {
     try {
-        const filepath = process.cwd() + file.split('/').join('\\');
+        const filepath = getFullBuildPath(project) + file.split('/').join('\\');
 
         const form_data = new FormData();
         form_data.append('file', fs.createReadStream(filepath));
 
         debug(`patch ${filepath}`);
 
-        const response = await axiosInstance.post(`/api/project/upload/${projectName}${file}`, form_data, {
+        const response = await axiosInstance.post(`/api/project/upload/${project.name}${file}`, form_data, {
             headers: {
                 'Content-Type': 'multipart/form-data; boundary=' + form_data.getBoundary()
             }
@@ -112,8 +157,9 @@ const patchFilesAsync = async (projectName: string, file: string) => {
     }
 };
 
-function createLocalProjectStructure(): DtoPatchProjectFileResponse[] {
-    return getFileHashesFromFolder(process.cwd(), process.cwd());
+function createLocalProjectStructure(project: ProjectModel): DtoPatchProjectFileResponse[] {
+    const fullBuildPath = getFullBuildPath(project);
+    return getFileHashesFromFolder(fullBuildPath, fullBuildPath);
 }
 
 function getFileHashesFromFolder(directory: string, projectDirectory: string): DtoPatchProjectFileResponse[] {

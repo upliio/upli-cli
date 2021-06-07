@@ -1,5 +1,6 @@
 import * as fs from 'fs';
 import {program} from 'commander';
+import {ProjectModelConfigDto} from './dtos/ProjectModelConfigDto';
 
 const packageJson = require('../package.json');
 
@@ -9,17 +10,65 @@ export function detectFramework(): Framework {
     const files = fs.readdirSync(process.cwd());
 
     if (files.includes('angular.json'))
-        return Framework.ANGULAR;
+        return <Framework>Frameworks.find(f => f.defaultConfig.framework == 'angular');
     // TODO: add react detection
 
-    return Framework.NONE;
+    return <Framework>Frameworks.find(f => f.defaultConfig.framework == 'none');
 }
 
+export interface Framework {
+    title: string
+    defaultConfig: ProjectModelConfigDto
+}
+
+export const Frameworks: Framework[] = [
+    {
+        title: 'No framework',
+        defaultConfig: {
+            framework: 'none',
+            mapping: [
+                {
+                    path: '/',
+                    file: 'index.html'
+                }
+            ],
+            deploy: {
+                ignored: [],
+                buildPath: null,
+                buildCmd: null
+            }
+        }
+    },
+    {
+        title: 'Angular',
+        defaultConfig: {
+            framework: 'angular',
+            mapping: [
+                {
+                    path: '404',
+                    file: 'index.html'
+                }
+            ],
+            deploy: {
+                ignored: [],
+                buildPath: 'dist/build',
+                buildCmd: 'ng build --output-path dist/build'
+            }
+        }
+    },
+    {
+        title: 'React',
+        defaultConfig: {} as ProjectModelConfigDto
+        // TODO: add default config for react
+    }
+];
+
+/*
 export enum Framework {
     NONE,
     ANGULAR,
     REACT
-}
+}*/
 
 export function delay(time: number) {
     return new Promise(resolve => setTimeout(() => resolve(null), time));
@@ -27,9 +76,13 @@ export function delay(time: number) {
 
 export function debug(msg: string) {
     if (program.opts().debug) {
-        console.log(`${Colors.BgRed}[DEBUG]${Colors.BgMagenta} ${Colors.FgWhite}${msg}${Colors.Reset}`);
+        console.log(`${Colors.BgBlue}${Colors.FgWhite}[DEBUG]${Colors.BgBlack}${Colors.FgCyan} ${msg}${Colors.Reset}`);
     }
 }
+
+export const isDebug = (): boolean => program.opts().debug;
+
+export const normalizePath = (file: string) => file.split('\\').join('/').split('//').join('/');
 
 export enum Colors {
     Reset = '\x1b[0m',

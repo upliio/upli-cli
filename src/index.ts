@@ -6,7 +6,7 @@ import {program} from 'commander';
 import {InitProject} from './commands/InitProject';
 import {Login} from './commands/Login';
 import axios from 'axios';
-import {Colors} from './utils';
+import {Colors, debug} from './utils';
 import {DeployProject} from './commands/DeployProject';
 import {getToken, setToken} from './user/UserService';
 
@@ -34,6 +34,7 @@ axiosInstance.interceptors.response.use(response => response, error => {
             break;
         default:
             const errorMessages = error.response?.data?.error?.message;
+            debug(`Error while sending request to ${error?.config?.url}`)
             if (errorMessages) {
                 errorMessages.forEach((msg: string) => console.log(Colors.FgRed + msg + Colors.Reset));
             } else {

@@ -30,7 +30,8 @@
     "md5-file": "^5.0.0",
     "ora": "^5.4.0",
     "path": "^0.12.7",
-    "prompts": "^2.4.1"
+    "prompts": "^2.4.1",
+    "shelljs": "^0.8.4"
   },
   "devDependencies": {
     "@types/node": "^15.12.1",
