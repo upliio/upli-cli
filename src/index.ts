@@ -18,10 +18,7 @@ const figlet = require('figlet');
 const path = require('path');
 
 export const axiosInstance = axios.create({
-    baseURL: 'https://api.upli.io',
-    headers: {
-        Cookie: 'token=oAKuoPolRK01pMd7qNoM' // TODO: local deployment token
-    }
+    baseURL: 'https://api.upli.io'
 });
 
 axiosInstance.interceptors.request.use(request => {

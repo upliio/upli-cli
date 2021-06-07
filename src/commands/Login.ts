@@ -52,22 +52,5 @@ export const Login = commander.program.createCommand('login')
                     console.log(chalk.red('Could not fetch user details'));
                 });
             }
-            /*if (response.username && response.password) {
-                const spinner = ora('Authenticate...').start();
-
-                axiosInstance.post(`/api/auth/login`, {
-                    username: response.username,
-                    password: response.password
-                }).then(res => {
-                    spinner.stop();
-
-                    console.log(res.data.token);
-
-                }).catch(err => {
-                    spinner.stop();
-                    console.log(chalk.red(`Invalid credentials`));
-                });
-
-            }*/
         })();
     });
