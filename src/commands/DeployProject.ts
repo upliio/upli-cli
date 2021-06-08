@@ -18,7 +18,8 @@ import md5File = require('md5-file');
 
 export const DeployProject = commander.program.createCommand('deploy')
     .description('Deploy project')
-    .action(() => {
+    .option('--skip-build', 'Wont execute the buildCmd command')
+    .action(options => {
         if (!isLoggedIn()) {
             displayLoginError();
             return;
@@ -52,7 +53,7 @@ export const DeployProject = commander.program.createCommand('deploy')
         spinner.text = `Build project with ${buildCmd}`;
 
         new Promise((resolve, reject) => {
-            if (!buildCmd) {
+            if (!buildCmd || options.skipBuild) {
                 resolve(null);
                 return;
             }
