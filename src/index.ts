@@ -5,7 +5,7 @@ import {program} from 'commander';
 import {InitProject} from './commands/InitProject';
 import {Login} from './commands/Login';
 import axios from 'axios';
-import {Colors, debug} from './utils';
+import {Colors, debug, packageVersion} from './utils';
 import {DeployProject} from './commands/DeployProject';
 import {getToken, setCurrentUser, setToken, user} from './user/UserService';
 import {GLOBAL_CONFIG_FILE, loadConfig} from './ConfigManager';
@@ -67,4 +67,5 @@ program
     .addCommand(Logout)
     .addCommand(InitProject)
     .addCommand(DeployProject)
+    .version(packageVersion)
     .parse(process.argv);
